@@ -8,13 +8,14 @@ from helpers import setup_camera, quat_mult
 from external import build_rotation
 from colormap import colormap
 from copy import deepcopy
+import torchvision
 
 RENDER_MODE = 'color'  # 'color', 'depth' or 'centers'
 # RENDER_MODE = 'depth'  # 'color', 'depth' or 'centers'
 # RENDER_MODE = 'centers'  # 'color', 'depth' or 'centers'
 
-ADDITIONAL_LINES = None  # None, 'trajectories' or 'rotations'
-# ADDITIONAL_LINES = 'trajectories'  # None, 'trajectories' or 'rotations'
+# ADDITIONAL_LINES = None  # None, 'trajectories' or 'rotations'
+ADDITIONAL_LINES = 'trajectories'  # None, 'trajectories' or 'rotations'
 # ADDITIONAL_LINES = 'rotations'  # None, 'trajectories' or 'rotations'
 
 REMOVE_BACKGROUND = False  # False or True
@@ -23,9 +24,11 @@ REMOVE_BACKGROUND = False  # False or True
 FORCE_LOOP = False  # False or True
 # FORCE_LOOP = True  # False or True
 
-w, h = 640, 360
+# w, h = 640, 360
+w, h = 640, 480
 near, far = 0.01, 100.0
-view_scale = 3.9
+# view_scale = 3.9
+view_scale = 1.0
 fps = 20
 traj_frac = 25  # 4% of points
 traj_length = 15
@@ -41,6 +44,18 @@ def init_camera(y_angle=0., center_dist=2.4, cam_height=1.3, f_ratio=0.82):
                     [np.sin(ry), 0., np.cos(ry),  center_dist],
                     [0.,         0., 0.,          1.]])
     k = np.array([[f_ratio * w, 0, w / 2], [0, f_ratio * w, h / 2], [0, 0, 1]])
+    return w2c, k
+
+def init_camera_ho3d():
+    k = np.array([[614.627,   0.   , 320.262],
+       [  0.   , 614.101, 238.469],
+       [  0.   ,   0.   ,   1.   ]])
+    
+    w2c = np.array([[-0.42280523,  0.9057442 ,  0.02938064,  0.0574508 ],
+       [-0.20785622, -0.06536946, -0.97597267,  0.09228485],
+       [-0.88206098, -0.41875327,  0.21590309,  0.47644413],
+       [ 0.        ,  0.        ,  0.        ,  1.        ]])
+    
     return w2c, k
 
 
@@ -137,14 +152,18 @@ def rgbd2pcd(im, depth, w2c, k, show_depth=False, project_to_cam_w_scale=None):
     return pts, cols
 
 
-def visualize(seq, exp):
+def visualize(dataset_type, seq, exp):
     scene_data, is_fg = load_scene_data(seq, exp)
 
     vis = o3d.visualization.Visualizer()
+    # print("vis:{}".format(vis))
     vis.create_window(width=int(w * view_scale), height=int(h * view_scale), visible=True)
 
-    w2c, k = init_camera()
+    # w2c, k = init_camera()
+    w2c, k = init_camera_ho3d()
     im, depth = render(w2c, k, scene_data[0])
+    torchvision.utils.save_image(im, 'test.png')
+    # import ipdb; ipdb.set_trace()
     init_pts, init_cols = rgbd2pcd(im, depth, w2c, k, show_depth=(RENDER_MODE == 'depth'))
     pcd = o3d.geometry.PointCloud()
     pcd.points = init_pts
@@ -233,6 +252,12 @@ def visualize(seq, exp):
 
 
 if __name__ == "__main__":
-    exp_name = "pretrained"
-    for sequence in ["basketball", "boxes", "football", "juggle", "softball", "tennis"]:
-        visualize(sequence, exp_name)
+    # exp_name = "pretrained"
+    # exp_name = "restart-resetweight-exp1"
+    # exp_name = "restart-test"
+    exp_name = "exp1"
+    # for sequence in ["basketball", "boxes", "football", "juggle", "softball", "tennis"]:
+    #     visualize(sequence, exp_name)
+    for sequence in ["ABF14"]:
+        visualize('ho3d', sequence, exp_name)
+        torch.cuda.empty_cache()

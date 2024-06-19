@@ -1,0 +1,4 @@
+# ninja log v5
+1	15170	1715604956323897223	/data/home/acw773/GauHuman/submodules/simple-knn/build/temp.linux-x86_64-cpython-38/simple_knn.o	e194b44189ea944
+0	25347	1715604966498929820	/data/home/acw773/GauHuman/submodules/simple-knn/build/temp.linux-x86_64-cpython-38/ext.o	528ca322aadb5a2f
+1	61742	1715605002892462378	/data/home/acw773/GauHuman/submodules/simple-knn/build/temp.linux-x86_64-cpython-38/spatial.o	fcede4bc49516bac

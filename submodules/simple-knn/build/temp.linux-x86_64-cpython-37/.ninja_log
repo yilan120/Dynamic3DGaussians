@@ -1,0 +1,5 @@
+# ninja log v5
+0	13091	1717994840734301088	/data/home/acw773/Dynamic3DGaussians/submodules/simple-knn/build/temp.linux-x86_64-cpython-37/simple_knn.o	506880b0aa118423
+0	22049	1717994849672398376	/data/home/acw773/Dynamic3DGaussians/submodules/simple-knn/build/temp.linux-x86_64-cpython-37/ext.o	79fc982cf63229e
+0	51005	1717994878645986972	/data/home/acw773/Dynamic3DGaussians/submodules/simple-knn/build/temp.linux-x86_64-cpython-37/spatial.o	80b5b35422501553
+5164	28378	1718034218063170909	/data/home/acw773/Dynamic3DGaussians/submodules/simple-knn/build/temp.linux-x86_64-cpython-37/ext.o	79fc982cf63229e
