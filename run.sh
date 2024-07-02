@@ -22,7 +22,7 @@ export CUDA_HOME=/share/apps/centos7/cuda/11.6.2
 export TORCH_CUDA_ARCH_LIST="8.0"
 
 # train
-apptainer exec --nv /data/home/acw773/ubuntu20_DGS.simg env CUDA_VISIBLE_DEVICES=0 python train.py
+# apptainer exec --nv /data/home/acw773/ubuntu20_DGS.simg env CUDA_VISIBLE_DEVICES=0 python train.py
 # visualize
 # apptainer exec --nv /data/home/acw773/ubuntu20_DGS.simg env CUDA_VISIBLE_DEVICES=0 python visualize.py 
 
@@ -34,6 +34,8 @@ apptainer exec --nv /data/home/acw773/ubuntu20_DGS.simg env CUDA_VISIBLE_DEVICES
 # train-restart-no-densify-mask-loss
 # apptainer exec --nv /data/home/acw773/ubuntu20_DGS.simg env CUDA_VISIBLE_DEVICES=0 python train_restart_mkloss.py
 
+# train-smooth-restart
+apptainer exec --nv /data/home/acw773/ubuntu20_DGS.simg env CUDA_VISIBLE_DEVICES=0 python train_smooth_restart.py
 
 # apptainer exec --nv /data/home/acw773/ubuntu20_DGS.simg env CUDA_VISIBLE_DEVICES=0 python train_restart_densify.py 
 

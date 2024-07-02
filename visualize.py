@@ -3,19 +3,20 @@ import torch
 import numpy as np
 import open3d as o3d
 import time
-from diff_gaussian_rasterization import GaussianRasterizer as Renderer
+# from diff_gaussian_rasterization import GaussianRasterizer as Renderer
+from diff_gaussian_rasterization_hand import GaussianRasterizer as Renderer
 from helpers import setup_camera, quat_mult
 from external import build_rotation
 from colormap import colormap
 from copy import deepcopy
 import torchvision
 
-RENDER_MODE = 'color'  # 'color', 'depth' or 'centers'
+# RENDER_MODE = 'color'  # 'color', 'depth' or 'centers'
 # RENDER_MODE = 'depth'  # 'color', 'depth' or 'centers'
-# RENDER_MODE = 'centers'  # 'color', 'depth' or 'centers'
+RENDER_MODE = 'centers'  # 'color', 'depth' or 'centers'
 
-# ADDITIONAL_LINES = None  # None, 'trajectories' or 'rotations'
-ADDITIONAL_LINES = 'trajectories'  # None, 'trajectories' or 'rotations'
+ADDITIONAL_LINES = None  # None, 'trajectories' or 'rotations'
+# ADDITIONAL_LINES = 'trajectories'  # None, 'trajectories' or 'rotations'
 # ADDITIONAL_LINES = 'rotations'  # None, 'trajectories' or 'rotations'
 
 REMOVE_BACKGROUND = False  # False or True
@@ -125,7 +126,8 @@ def calculate_rot_vec(scene_data, is_fg):
 def render(w2c, k, timestep_data):
     with torch.no_grad():
         cam = setup_camera(w, h, k, w2c, near, far)
-        im, _, depth, = Renderer(raster_settings=cam)(**timestep_data)
+        # color, radii, depth, alpha
+        im, _, depth, _ = Renderer(raster_settings=cam)(**timestep_data)
         return im, depth
 
 
@@ -154,6 +156,7 @@ def rgbd2pcd(im, depth, w2c, k, show_depth=False, project_to_cam_w_scale=None):
 
 def visualize(dataset_type, seq, exp):
     scene_data, is_fg = load_scene_data(seq, exp)
+    import ipdb; ipdb.set_trace()
 
     vis = o3d.visualization.Visualizer()
     # print("vis:{}".format(vis))
@@ -254,8 +257,8 @@ def visualize(dataset_type, seq, exp):
 if __name__ == "__main__":
     # exp_name = "pretrained"
     # exp_name = "restart-resetweight-exp1"
-    # exp_name = "restart-test"
-    exp_name = "exp1"
+    # exp_name = "exp1"
+    exp_name = "restart-test"
     # for sequence in ["basketball", "boxes", "football", "juggle", "softball", "tennis"]:
     #     visualize(sequence, exp_name)
     for sequence in ["ABF14"]:

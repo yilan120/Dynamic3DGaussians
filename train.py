@@ -7,9 +7,10 @@ import torchvision
 from PIL import Image
 from random import randint
 from tqdm import tqdm
-from diff_gaussian_rasterization import GaussianRasterizer as Renderer
+# from diff_gaussian_rasterization import GaussianRasterizer as Renderer
+from diff_gaussian_rasterization_hand import GaussianRasterizer as Renderer
 from helpers import setup_camera, l1_loss_v1, l1_loss_v2, weighted_l2_loss_v1, weighted_l2_loss_v2, quat_mult, \
-    o3d_knn, params2rendervar, params2cpu, save_params
+    o3d_knn, params2rendervar, params2cpu, save_params, l2_loss
 from external import calc_ssim, calc_psnr, build_rotation, densify, update_params_and_optimizer
 from colmap_loader import read_points3D_binary, read_points3D_text, read_extrinsics_binary, read_intrinsics_binary, readColmapCameras
 from colmap_store import storePly, fetchPly
@@ -36,10 +37,11 @@ def get_dataset(dataset_type, t, md, seq):
             im = seg_image.float().cuda()
             # torchvision.utils.save_image(im, 'im_1.png')
             # seg = np.array(copy.deepcopy(Image.open(f"/data/scratch/acw773/HO3D_v2_Segmentations_rendered/train/{seq}/object_seg/{fn.replace('.png', '.jpg')}").convert('1'))).astype(np.float32)
-            seg = seg_delete.float().cuda()
+            seg_for_col = seg_delete.float().cuda()
+            seg = seg.float().cuda()
             # import ipdb; ipdb.set_trace()
-        seg_col = torch.stack((seg, torch.zeros_like(seg), 1 - seg))
-        dataset.append({'cam': cam, 'im': im, 'seg': seg_col, 'id': c})
+        seg_col = torch.stack((seg_for_col, torch.zeros_like(seg_for_col), 1 - seg_for_col))
+        dataset.append({'cam': cam, 'im': im, 'seg': seg, 'seg_col': seg_col, 'id': c})
     return dataset
 
 
@@ -153,7 +155,10 @@ def get_loss(params, curr_data, variables, is_initial_timestep, i, num_iter_per_
     rendervar = params2rendervar(params)
     num_points = rendervar['means3D'].shape[0]
     rendervar['means2D'].retain_grad()
-    im, radius, _, = Renderer(raster_settings=curr_data['cam'])(**rendervar)
+    # color, radii, depth, alpha
+    im, radius, _, alpha = Renderer(raster_settings=curr_data['cam'])(**rendervar)
+    if i == (num_iter_per_timestep - 1):
+        torchvision.utils.save_image(im, f'test_{t}.png')
     # torchvision.utils.save_image(im, 'im.png')
     # import ipdb; ipdb.set_trace()
     if i == num_iter_per_timestep -1:
@@ -165,6 +170,7 @@ def get_loss(params, curr_data, variables, is_initial_timestep, i, num_iter_per_
     im = torch.exp(params['cam_m'][curr_id])[:, None, None] * im + params['cam_c'][curr_id][:, None, None]
     losses['im'] = 0.8 * l1_loss_v1(im, curr_data['im']) + 0.2 * (1.0 - calc_ssim(im, curr_data['im']))
     variables['means2D'] = rendervar['means2D']  # Gradient only accum from colour render for densification
+    losses['seg'] = l2_loss(alpha, curr_data['seg'])
 
     # segrendervar = params2rendervar(params)
     # segrendervar['colors_precomp'] = params['seg_colors']
@@ -201,9 +207,7 @@ def get_loss(params, curr_data, variables, is_initial_timestep, i, num_iter_per_
 
         losses['soft_col_cons'] = l1_loss_v2(params['rgb_colors'], variables["prev_col"])
 
-    # loss_weights = {'im': 1.0, 'seg': 3.0, 'rigid': 4.0, 'rot': 4.0, 'iso': 2.0, 'floor': 2.0, 'bg': 20.0,
-    #                 'soft_col_cons': 0.01}
-    loss_weights = {'im': 1.0, 'rigid': 4.0, 'rot': 4.0, 'iso': 2.0, 'floor': 2.0, 'bg': 20.0,
+    loss_weights = {'im': 1.0, 'seg': 0.1, 'rigid': 4.0, 'rot': 4.0, 'iso': 2.0, 'floor': 2.0, 'bg': 20.0,
                     'soft_col_cons': 0.01}
     loss = sum([loss_weights[k] * v for k, v in losses.items()])
     seen = radius > 0
@@ -260,7 +264,7 @@ def initialize_post_first_timestep(params, variables, optimizer, num_knn=20):
 
 def report_progress(loss_im, num_points, params, data, i, progress_bar, every_i=100):
     if i % every_i == 0:
-        im, _, _, = Renderer(raster_settings=data['cam'])(**params2rendervar(params))
+        im, _, _, alpha = Renderer(raster_settings=data['cam'])(**params2rendervar(params))
         curr_id = data['id']
         im = torch.exp(params['cam_m'][curr_id])[:, None, None] * im + params['cam_c'][curr_id][:, None, None]
         psnr = calc_psnr(im, data['im']).mean()
@@ -330,12 +334,12 @@ def train(dataset_type, seq, exp):
 
 
 if __name__ == "__main__":
-    exp_name = "exp2"
+    exp_name = "exp-test"
     # for sequence in ["basketball"]:
     #     train('original', sequence, exp_name)
     #     torch.cuda.empty_cache()
-    print("case: ABF14")
+    print("case: ABF10")
     print("exp_name:{}".format(exp_name))
-    for sequence in ["ABF14"]:
+    for sequence in ["ABF10"]:
         train('ho3d', sequence, exp_name)
         torch.cuda.empty_cache()

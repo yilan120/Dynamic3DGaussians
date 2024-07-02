@@ -2,7 +2,8 @@ import torch
 import os
 import open3d as o3d
 import numpy as np
-from diff_gaussian_rasterization import GaussianRasterizationSettings as Camera
+# from diff_gaussian_rasterization import GaussianRasterizationSettings as Camera
+from diff_gaussian_rasterization_hand import GaussianRasterizationSettings as Camera
 
 
 def setup_camera(w, h, k, w2c, near=0.01, far=100):
@@ -37,6 +38,7 @@ def params2rendervar(params):
         'colors_precomp': params['rgb_colors'],
         'rotations': torch.nn.functional.normalize(params['unnorm_rotations']),
         'opacities': torch.sigmoid(params['logit_opacities']),
+        # np.tile(np.log(np.sqrt(mean3_sq_dist))[..., None], (1, 3))
         'scales': torch.exp(params['log_scales']),
         'means2D': torch.zeros_like(params['means3D'], requires_grad=True, device="cuda") + 0
     }
@@ -57,6 +59,41 @@ def weighted_l2_loss_v1(x, y, w):
 
 def weighted_l2_loss_v2(x, y, w):
     return torch.sqrt(((x - y) ** 2).sum(-1) * w + 1e-20).mean()
+
+def l2_loss(x, y):
+    return torch.sqrt(((x - y) ** 2).sum(-1)).mean()
+
+
+def SmoothDepthTVLoss(points, distance_threshold):
+    # Convert to numpy for sorting
+    # import ipdb; ipdb.set_trace()
+    points_np = points.detach().cpu().numpy()
+    
+    # Sort points based on x, then y
+    sorted_indices = np.lexsort((points_np[:, 1], points_np[:, 0]))
+    sorted_points = points[sorted_indices]
+
+    # Extract the coordinates of the sorted points
+    x_coords = sorted_points[:, 0]
+    y_coords = sorted_points[:, 1]
+    z_coords = sorted_points[:, 2]
+    
+    # Calculate the Euclidean distances between adjacent points
+    distances = torch.sqrt((x_coords[1:] - x_coords[:-1])**2 + (y_coords[1:] - y_coords[:-1])**2)
+    dis = torch.max(distances)
+    print("dis:{}".format(dis))
+    
+    # Apply the distance threshold
+    valid_indices = torch.where(distances < distance_threshold)[0]
+    
+    # Calculate the TV loss for valid points
+    if len(valid_indices) > 0:
+        z_diff = torch.abs(z_coords[valid_indices + 1] - z_coords[valid_indices]) + 1e-20
+        tv_loss = z_diff.sum()
+    else:
+        tv_loss = torch.tensor(0.0, requires_grad=True)
+    
+    return tv_loss
 
 
 def quat_mult(q1, q2):
